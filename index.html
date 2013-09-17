@@ -1,0 +1,87 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.5 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="description" content="Implementing the Hogbom CLEAN algorithm for radio astronomy in parallel on the GPU." />
+	<meta name="keywords" content="CLEAN,radio,astronomy,GPU,parallel" />
+	<meta name="author" content="Nathan Sanders, Katherine Rosenfeld" />
+	<link rel="stylesheet" type="text/css" href="basic-modular.css" />
+	<title>CLEANing up Radio Astronomy on the GPU</title>
+</head>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-36998733-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + 
+'.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+
+
+<body>
+<!-- Layout setting -->
+<div id="container">
+
+<!-- Header block -->
+<div class="header">
+	<h1>CLEANing Up Radio Astronomy on the GPU</h1>
+	<p>Katherine Rosenfeld and Nathan Sanders<!--<br>CS 205 term project--></p>
+</div>
+<!-- / Header block -->
+
+<!-- Main menu block -->
+<div class="mainmenu">
+	<ul>
+		<li><a href="#">Overview</a></li>
+		<li><a href="code.html">Code/Readme</a></li>
+		<li><a href="examples.html">Examples</a></li>
+		<li><a href="more.html">More information</a></li>
+	</ul>
+</div>
+<!-- / Main menu block -->
+
+<!-- Single content block -->
+<div class="singlecontent">
+	<h1>CLEAN on the GPU</h1>
+	<p> Observational data in radio astronomy requires significant pre-processing before it can be interpreted scientifically.  The most commonly-used procedures in this field are gridding, transforming the signal recorded in frequency space by the radio antenna array to an image in the plane of the sky, and CLEANing, deconvolving the image with the point spread function of the instrument.  We have implemented standard algorithms for both these tasks on the GPU using pyCUDA, achieving speedups of ~5 for gridding and ~50 for CLEANing.</p>
+
+<h2>Video description</h2>
+        <video width="500px" controls>
+        <source src="gICLEAN.mp4" type="video/mp4">
+        <source src="gICLEAN.ogv" type="video/ogg">
+        <source src="gICLEAN.webm" type="video/webm">
+        Your browser does not support the video tag.
+</video>
+
+<p><a href="http://youtu.be/5Om7kHIdSdQ">Video also available on YouTube</a></p>
+
+<p></p>
+<h2>Imaging the debris disk Fomalhaut</h2>
+<p>Below is an example image using one of the earliest published science data from the <a href="http://www.nrao.edu/index.php/about/facilities/alma">ALMA telescope array</a>. We started with the data obtained by <a href="http://arxiv.org/abs/1204.0007">Boley et al. (2012)</a> (visualized on the left) to produce an image (shown on the right) of this dusty ring.  For a great description of this data and the Fomalhaut system, see <a href="http://astrobites.com/2012/04/15/almas-first-results-tackle-the-controversial-fomalhaut/">Astrobites</a>.  We thank Aaron Boley and Matt Payne for use of the data.</p>
+<a href='fomalhaut_2pretty.png'><img src="thumb/fomalhaut_2pretty.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+</div>
+<!-- / Single content block -->
+
+<!-- Footer block -->
+<div class="footer">
+	<p>&copy; 2012 Nathan Sanders and Katherine Rosenfeld | Template design by <a href="http://andreasviklund.com/">Andreas Viklund</a><br /></p>
+</div>
+<!-- / Footer block -->
+
+</div>
+<!-- / Layout setting -->
+</body>
+</html>
+
+

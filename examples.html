@@ -1,0 +1,152 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.5 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="description" content="Implementing the Hogbom CLEAN algorithm for radio astronomy in parallel on the GPU." />
+	<meta name="keywords" content="CLEAN,radio,astronomy,GPU,parallel" />
+	<meta name="author" content="Nathan Sanders, Katherine Rosenfeld" />
+	<link rel="stylesheet" type="text/css" href="basic-modular.css" />
+	<title>CLEANing up Radio Astronomy on the GPU</title>
+</head>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-36998733-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + 
+'.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+<body>
+<!-- Layout setting -->
+<div id="container">
+
+<!-- Header block -->
+<div class="header">
+	<h1>CLEANing Up Radio Astronomy on the GPU</h1>
+	<p>Katherine Rosenfeld and Nathan Sanders<!--<br>CS 205 term project--></p>
+</div>
+<!-- / Header block -->
+
+<!-- Main menu block -->
+<div class="mainmenu">
+	<ul>
+		<li><a href="index.html">Overview</a></li>
+		<li><a href="code.html">Code/Readme</a></li>
+		<li><a href="examples.html">Examples</a></li>
+		<li><a href="more.html">More information</a></li>
+	</ul>
+</div>
+<!-- / Main menu block -->
+
+<div class="header">
+<h2> Please <a href="https://github.com/nesanders/gICLEAN/tree/master/examples">click here</a> to download the simulated datasets.</h2>
+</div>
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>CLEANing ϵ Mouse, a Non-identifiable Mouse Caricature</h1>
+</div>
+<!-- Headline block -->
+
+<!-- Single content block -->
+<div class="singlecontent">
+
+<p>The input data are complex valued and must be gridded (this example is an offset, inclined ring):</p>
+
+<center><a href='grid_vis.png'><img src="thumb/grid_vis.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<p>The sampling pattern in the complex plane determines the shape of the dirty beam shown below (left) and is approximated by a clean beam (right), which preserves only the primary lobe.</p>
+
+<center><a href='mickey_cleanbeam.png'><img src="thumb/mickey_cleanbeam.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<p>The Hogbom algorithm iteratively finds the pixel with maximum absolute intensity on the dirty image and subtracts the dirty beam shifted and scaled to that location/intensity.  Below we show a simulated dirty image of the fictional astrophysical sources ϵ Mouse (left) and the first three iterations of the dirty beam subtraction (right).</p>
+
+<p><b>Click on this image to see an animated version.</b></p>
+
+<center><a href='animate_mickey_subd.gif'><img src="thumb/mickey_subdpsf_00003.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<p>The Hogbom algorithm converges to within the specified threshold (0.2 times the initial maximum intensity, in this case) after 2700 iterations.  At each iteration, it has added a point source to its model for the image, shown below at right.  The model closely resembles the astrophysical source ϵ Mouse:</p>
+
+<center><a href='mickey_cleaned.png'><img src="thumb/mickey_cleaned.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<p>After removing these 2700 “point sources” from the dirty image, the source ϵ Mouse is essentially completely removed (flux is zero, shown as gray below) and the variance in the background, produced by the sidelobes of the dirty beam convolved with the source, is much lower (less negative/positive; more gray).</p>
+
+<center><a href='mickey_dirty_final.png'><img src="thumb/mickey_dirty_final.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<p>Finally, the remaining background variance is added to the model image, convolved with the clean beam, to produce the final, CLEANed image (right).  In this image, the effects of the sidelobes of the dirty beam are largely removed.  When compared with the original dirty image (left), the source ϵ Mouse is more clear and the variance in the background is significantly smaller.</p>
+
+<center><a href='mouse_clean_final.png'><img src="thumb/mouse_clean_final.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+</div>
+<!-- / Single content block -->
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>More examples: Inclined disk</h1>
+</div>
+<!-- Headline block -->
+
+<div class="singlecontent">
+
+<p>As an additional example of a more realistic simulated astrophysical source, we applied our code to a simulated inclined disk, like the <a href="http://astrobites.com/2011/03/11/review-article-protoplanetary-disks-and-their-evolution/">protoplanetary disks we find around young stars</a>.</p>
+
+<p><b>Click on the image below to see an animated version.</b></p>
+
+<center><a href='animate_sim1_subd.gif'><img src="thumb/sim1_subdpsf_00003.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<center><a href='sim1_cleaned.png'><img src="thumb/sim1_cleaned.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<center><a href='sim1_dirty_final.png'><img src="thumb/sim1_dirty_final.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<center><a href='sim1_clean_final.png'><img src="thumb/sim1_clean_final.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+
+</div>
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>More examples: Real ALMA data of the Fomalhaut system!</h1>
+</div>
+<!-- Headline block -->
+
+
+
+<div class="singlecontent">
+
+<p>This dataset is one of the earliest published science data from the <a href="http://www.nrao.edu/index.php/about/facilities/alma">ALMA telescope array</a> and was obtained by <a href="http://arxiv.org/abs/1204.0007">Boley et al. (2012)</a>.  For a great description of this data and the Fomalhaut system, see <a href="http://astrobites.com/2012/04/15/almas-first-results-tackle-the-controversial-fomalhaut/">Astrobites</a>.  We thank Aaron Boley and Matt Payne for use of the data.</p>
+
+<p><b>Click on the image below to see an animated version.</b></p>
+
+<center><a href='animate_formalhaut_subd.gif'><img 
+src="thumb/formalhaut_subdpsf_00003.jpg"></a></center>
+
+<center><a href='fomalhaut_dirty_final.png'><img src="thumb/fomalhaut_dirty_final.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<center><a href='fomalhaut_clean_final.png'><img src="thumb/fomalhaut_clean_final.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+
+
+</div>
+
+<!-- Footer block -->
+<div class="footer">
+	<p>&copy; 2012 Nathan Sanders and Katherine Rosenfeld | Template design by <a href="http://andreasviklund.com/">Andreas Viklund</a><br /></p>
+</div>
+<!-- / Footer block -->
+
+</div>
+<!-- / Layout setting -->
+</body>
+</html>
+

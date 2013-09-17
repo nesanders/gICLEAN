@@ -1,0 +1,206 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.5 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="description" content="Implementing the Hogbom CLEAN algorithm for radio astronomy in parallel on the GPU." />
+	<meta name="keywords" content="CLEAN,radio,astronomy,GPU,parallel" />
+	<meta name="author" content="Nathan Sanders, Katherine Rosenfeld" />
+	<link rel="stylesheet" type="text/css" href="basic-modular.css" />
+	<title>CLEANing up Radio Astronomy on the GPU</title>
+</head>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-36998733-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + 
+'.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+<body>
+<!-- Layout setting -->
+<div id="container">
+
+<!-- Header block -->
+<div class="header">
+	<h1>CLEANing Up Radio Astronomy on the GPU</h1>
+	<p>Katherine Rosenfeld and Nathan Sanders<!--<br>CS 205 term project--></p>
+</div>
+<!-- / Header block -->
+
+<!-- Main menu block -->
+<div class="mainmenu">
+	<ul>
+		<li><a href="index.html">Overview</a></li>
+		<li><a href="code.html">Code/Readme</a></li>
+		<li><a href="examples.html">Examples</a></li>
+		<li><a href="more.html">More information</a></li>
+	</ul>
+</div>
+<!-- / Main menu block -->
+
+<!-- Single content block -->
+<div class="singlecontent">
+	<p>We have tested our CUDA code on a variety of simulated datasets.  Some examples from these simulations are shown below.</p>
+
+<h2>System requirements:</h2>
+
+<ul>
+<li><a href="http://www.nvidia.com/object/cuda_home_new.html">CUDA enabled NVIDIA GPU</a>
+<li><a href="http://mathema.tician.de/software/pycuda">pycuda</a>
+<li><a href="http://scikits.appspot.com/cuda">scikits.cuda</a>
+<li><a href="http://www.stsci.edu/institute/software_hardware/pyfits">pyfits</a>
+</ul>
+
+<h2>Download the code:</h2>
+
+<ul>
+<li><a href="https://github.com/nesanders/gICLEAN/blob/master/gICLEAN.py">gICLEAN.py</a>
+<li><a href="https://github.com/nesanders/gICLEAN/blob/master/gICLEAN_Readme.pdf">PDF readme document</a>
+</ul>
+
+</div>
+<!-- / Single content block -->
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>How it works</h1>
+</div>
+<!-- Headline block -->
+
+<!-- Single content block -->
+<div class="singlecontent">
+	<p>We have tested our CUDA code on a variety of simulated datasets.  Some examples from these simulations are available <a href="examples.html">here</a>.</p>
+
+<h2>Gridding:</h2>
+
+
+<p>Synthesis aperture arrays sample the Fourier transform of the sky brightness towards the source. In order to make a science image you must first invert these complex valued measurements, V(u,v), by taking a Fourier transform. The common technique is to grid the sampled data points and evaluate the discrete Fourier transform via an FFT.  We grid using a convolution with a standard spheroidal function and use the CUDA SciKit wrapper for cuFFT to calculate the sky image and point source response function. We also include a rudimentary weighting scheme that can be used to accentuate different aspects of the data. We use the following kernels:</p>
+
+<ul>
+<li> <b>gridVis_wBM_kernel</b>: Each pixel in the uv plane goes through the data and check to see whether the pixel is included in the convolution. This kernel also calculates the point spread function and the local sampling from the data (for applying the weights later).
+<li> <b>wgtGrid_kernel</b>: This will apply the weights.
+<li> <b>dblGrid_kernel</b>: To improve speed, the previous kernel is only evaluated for half the grid. Since the data is Hermitian (the sky brightness is purely real) we can figure out what the other half looks like afterwards.
+<li> <b>nrmGrid_kernel</b>/<b>nrmBeam_kernel</b>: This normalizes an array.
+<li> <b>corrGrid_kernel</b>: The corrects for the convolution we applied when gridding.
+<li> <b>shiftGrid_kernel</b>: This shifts a grid for computing an FFT.
+<li> <b>trimIm_kernel</b>: We pad the uv grid to improve image quality and this kernel trims it to the requested image size.
+</ul>
+
+<h2>Hogbom CLEAN algorithm:</h2>
+
+<p>Radio antenna arrays typically have non-uniform spacing, which gives them access to low and high frequencies simultaneously, but with sparse sampling in the UV plane.   A Fourier tranform of this sparsely sampled data yields significant artifacts in the resulting image.  For example, an image of a point source will have many sidelobes throughout the 2D image, which can reach intensities within an order of magnitude of the primary lobe.  </p>
+
+<p>This point source response pattern is called the dirty beam.  The mage produced by convolving an astronomical source with the dirty beam is called the dirty image or dirty map.  A clean beam is typically constructed by fitting a 2D Gaussian to the primary lobe of the dirty beam.  If the locations of all astrophysical sources in the dirty image are known, a clean image can be approximated by convolving this model with the clean beam.</p>
+
+<p>Hogbom (<a href="http://adsabs.harvard.edu/abs/1974A%26AS...15..417H">1974, Astronomy and Astrophysics, 15, 417</a>) presented a classic image deconvolution algorithm used in radio astronomy to remove these instrumental artifacts.  We implement the Hogbom algorithm on the GPU using pyCUDA (“cuda_hogbom” function).  The algorithm uses 3 CUDA kernels:</p>
+
+<ul>
+<li><b>find_max:</b> The Hogbom algoritm begins by finding the highest intensity point (in terms of absolute value) on the dirty image.  Our implementation uses the gpuarray.max an atomic exchange operator to find the maximum, and then the find_max kernel is called to identify the array index of the maximum and record the maximum value at this position on the image model.
+<li><b>sub_beam:</b> In each iteration, the dirty beam is scaled, positioned at the maximum point found in step 1, and subtracted from the dirty image.  Our sub_beam kernel performs this subtraction on the gpu, and simultaneously adds the scaled and shifted clean beam to the clean image.
+<li><b>add_noise:</b> The final step in the Hogbom algorithm is to add the residuals from the dirty image, after iterative beam subtraction, to the model cleaned image as ‘noise.’  We do this using an element wise pyCUDA kernel.
+Data input
+</ul>
+
+<p>gICLEAN.py is executed as a python script from the command line:</p>
+
+<p><code>python gICLEAN.py [example] [image size] [make figures]</code></p>
+
+<p>The command line options can also be edited within the main routine:</p>
+<ul>
+<li>[example]: Choose a dataset to image. We provide the options of a ‘gaussian’, ‘ring’, ‘mouse’, or ‘hd163296’. All except the last are simulated datasets. 
+The default is ‘gaussian’.
+<li>[image size]: The number of pixels on an image side. The default is 1024.
+<li>[make figures]: 0/1 toggles whether or not summary images are created. The default is 0=False.
+</ul>
+
+<p>This will compile and run the CUDA kernels and generate final images. It requires an ALMA style visibility dataset in FITS format that is set by the vfile keyword. This version is good for single channel images only (although it is in principle scalable for spectral lines or multi-frequency synthesis). We have supplied several examples along with reasonable imaging parameters in our code with the data available in the <a href="examples.html">examples section</a>. The gaussian, ring, and mickey examples are noiseless, simulated datasets while hd163296 is a single channel of the CO J=3-2 line observed by the sub-millimeter telescope ALMA. </p>
+</div>
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>Usage</h1>
+</div>
+<!-- Headline block -->
+
+<!-- Single content block -->
+<div class="singlecontent">
+
+<p>First, set up the environment (this applicable to users of the Harvard SEAS Resonance cluster only):</p>
+
+<p>
+<code>
+gpu-login</p>
+module load courses/cs205/2012
+</code>
+</p>
+
+<p>To perform gridding and CLEANing for the Gaussian source example, simply run:</p>
+
+<p>
+<code>
+python gICLEAN.py
+</code>
+</p>
+
+<p>This script takes a few command line options:</p>
+
+<p>
+<code>
+python gICLEAN.py [EXAMPLE] [ISIZE] [PLOTME]
+</code>
+</p>
+
+<ul>
+<li>example: Use this to select which example dataset to operate on.  Options are “gaussian,” “ring,” “mouse,” and “hd163296.”  FITS files containing visibilities (raw data) for each example to be gridded and CLEANed are available in a tar archive in the <a href="examples.html">examples section</a> .
+<li>ISIZE: The output image size, in pixels.  This is ‘1024’ by default; to make e.g. an image four times larger on each size, choose ‘4096’.
+<li>PLOTME: Turn this on to generate various png plots using matplotlib.  This slows down the code, because it needs to grab data from the GPU and do the plotting, but is useful for debugging and data display.  
+</ul>
+
+<p>Within this module, there are several functions that have their own configurable options, although these are not given command line switches.</p>
+
+<h3>cuda_gridvis parameters:</h3>
+
+<ul>
+<li>settings: This is a Python dictionary containing the following imaging parameters:
+<li>vfile: A string with the location of the dataset (see Data Input section)
+<li>cell: The size of a single pixel in arcseconds.
+<li>imsize: The number of pixels on an edge. Images are square and must be a power of 2.
+<li>briggs: This controls the visibility weights. A larger number corresponds to better sensitivity while a lower number will improve resolution.
+<li>plan: This is the plan for cuFFT to follow.
+</ul>
+
+<h3>cuda_hogbom parameters:</h3>
+
+<ul>
+<li>thresh: This defines the stopping threshold for the Hogbom algoirthm,  Iterations continue until the maximum intensity point on the dirty image is a factor less than thresh of the maximum in the original dirty image.  The default value is thresh=0.2.
+<li>gain: This defines the “strength” of each iteration.  At each iteration, the dirty beam is multiplied by gain before subtraction from the ditty image.  By default, gain=0.1, meaning that 10 iterations are required to fully clean an image with a single point source.
+</ul>
+
+
+</div>
+<!-- / Single content block -->
+
+
+
+<!-- Footer block -->
+<div class="footer">
+	<p>&copy; 2012 Nathan Sanders and Katherine Rosenfeld | Template design by <a href="http://andreasviklund.com/">Andreas Viklund</a><br /></p>
+</div>
+<!-- / Footer block -->
+
+</div>
+<!-- / Layout setting -->
+</body>
+</html>
+

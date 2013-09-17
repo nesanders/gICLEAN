@@ -1,0 +1,147 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.5 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="description" content="Implementing the Hogbom CLEAN algorithm for radio astronomy in parallel on the GPU." />
+	<meta name="keywords" content="CLEAN,radio,astronomy,GPU,parallel" />
+	<meta name="author" content="Nathan Sanders, Katherine Rosenfeld" />
+	<link rel="stylesheet" type="text/css" href="basic-modular.css" />
+	<title>CLEANing up Radio Astronomy on the GPU</title>
+</head>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-36998733-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + 
+'.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+<body>
+<!-- Layout setting -->
+<div id="container">
+
+<!-- Header block -->
+<div class="header">
+	<h1>CLEANing Up Radio Astronomy on the GPU</h1>
+	<p>Katherine Rosenfeld and Nathan Sanders<!--<br>CS 205 term project--></p>
+</div>
+<!-- / Header block -->
+
+<!-- Main menu block -->
+<div class="mainmenu">
+	<ul>
+		<li><a href="index.html">Overview</a></li>
+		<li><a href="code.html">Code/Readme</a></li>
+		<li><a href="examples.html">Examples</a></li>
+		<li><a href="more.html">More information</a></li>
+	</ul>
+</div>
+<!-- / Main menu block -->
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>Design</h1>
+</div>
+<!-- Headline block -->
+
+
+<!-- Single content block -->
+<div class="singlecontent">
+
+
+<p>Both the gridding and CLEAN kernels were parallelized by pixel (in the <i>uv</i> and image plane respectively). The latter greatly benefited from this choice since once the maxima has been located in the dirty image the convolution is embarassingly parralel for both building the CLEANed image and subracting from the dirty image.  For each iteration we call pyCUDA's max() function and used atomic operations to locate the peak's position in the image. The speed of this kernel and the quality of our CLEANed images might be improved by including a masking option that would limit the search area.  One might also be able to combine the max() and locate() steps into one kernel optimized for the square grids we generate.  Additionally, we build up the CLEANed image during the CLEAN iterations. This is faster than constructing the image at the end through multiple convolutions. However we coule implement this step using an FFT and multiplication. This might result in a factor of ~2 improvement in speedup. We tried 
+a few advanced optimizations using texture memory and meta-programming with Cheetah but saw little measurable improvement.</p>
+
+<p>Our implementation of the gridding kernel is much more expensive than the FFT, weighting, and shifting kernels (for our test datasets).  The large number of visibilities (~1.5 million for the Fomalhaut dataset) that must be moved onto the GPU makes memory a limiting factor.  Performance improved greatly (speedups of ~10) by leveraging the Hermitian nature of the data and the minimum baseline to reduce the gridding region.  We also averaged the data in various ways to reduce the size of the datasets and removed flagged visibilities on the CPU.  We keep the convolution kernel in constant memory and tried various optimization schemes such as shared and staggered memory access.  Better performance might be achieved by pre-processing (e.g. sorting and indexing) the data on the CPU (<a href="http://www.nvidia.com/docs/IO/47905/ECE757_Project_Report_Gregerson.pdf">see this report)</a>).</p>
+
+<p>Imaging spectral image cubes or multi-frequency synthesis would benefit by parallelizing 
+this application using MPI across multiple GPUs. Additionally, extending this application to 
+<a href="http://www.iram.fr/IRAMFR/GILDAS/doc/html/map-html/node37.html">more advanced versions 
+of the CLEAN algorithm</a> is possible and might benefit from the 
+speedups we report.  Lastly, our kernels and python code provide a framework that can be extended for analyzing complex visibilities on the GPU.</p>
+
+</div>
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>Performance</h1>
+</div>
+<!-- Headline block -->
+
+
+<!-- Single content block -->
+<div class="singlecontent">
+
+
+<p>Here are timings output by our GPU code for the source ϵ Mouse :</p>
+
+<pre><code>Gridding execution time 2.12 0.06s
+        0.0000096 s per visibility
+  Hogbom execution time 3.270.02 s
+        0.0013 s per iteration
+</code></pre>
+
+<p>A <a href="http://www.mrao.cam.ac.uk/~bn204/alma/python-clean.html">reference implementation</a> of the Hogbom algorithm in numpy took:</p>
+
+<pre><code>Serial execution time 251.6380  s
+         0.0908  s per iteration 
+</code></pre>
+
+<p>The standard radio astronomy software <a href="http://casa.nrao.edu/">CASA</a> took 14.40.07 s for both gridding and CLEANing.  </p>
+
+<p>We therefore achieve a Hogbom speedup of 70x compared to the reference numpy implementation, which is an identical CLEAN algorithm.  Our routine has a 2.7x speedup compared to the CASA implementation, which apparently is already significantly optimized compared to the reference implementation.  The final CLEANed images from our implementation and CASA are compared below:</p>
+
+<center><a href='compare.png'><img src="thumb/compare.jpg" alt="Comparison between gICLEAN and CASA."></center></a>
+
+<p>The execution time per visibility is independent of the source’s structure but does scale with the number of samples as well as the sampling coverage. The time per Hogbom iteration should be independent of all characteristics except image dimensions.  Indeed, with we find similar timings with all our examples using 1024x1024 image dimensions.  Increasing the image dimensions, we find that the gridding execution time remains approximately the same, while the Hogbom execution time grows approximately linearly with the number of pixels.</p>
+
+</div>
+
+<!-- Headline block -->
+<div class="headline">
+	<h1>See Also</h1>
+</div>
+<!-- Headline block -->
+
+<!-- Single content block -->
+<div class="singlecontent">
+
+      <ul>
+      <li>A description of the Hogbom algorithm by the National Radio Astronomy Observatory: <br> <a href="http://www.cv.nrao.edu/~abridle/deconvol/node8.html">http://www.cv.nrao.edu/~abridle/deconvol/node8.html</a>
+      <li>Hogbom’s original <a href="http://adsabs.harvard.edu/abs/1974A%26AS...15..417H">1974 paper</a>
+      <li>The radio astronomy data reduction packages <a href="http://casa.nrao.edu/">CASA</a> and <a href="http://bima.astro.umd.edu/miriad/">MIRIAD</a>
+      <li><a href="http://www.mrao.cam.ac.uk/~bn204/alma/python-clean.html">A reference implementation of the Hogbom algorithm in numpy</a>
+      </ul>
+
+      <p>Finally, note that the following is printed at the end of each run of the code:</p>
+
+      <pre><code>Exception scikits.cuda.cufft.cufftInvalidPlan: cufftInvalidPlan() in <bound method Plan.__del__ of <scikits.cuda.fft.Plan instance at 0xd56dcf8>> ignored</code></pre>
+
+      <p>This exception does not seem to affect the execution of the code in any way.</p>
+
+</div>
+<!-- / Single content block -->
+
+
+<!-- Footer block -->
+<div class="footer">
+	<p>&copy; 2012 Nathan Sanders and Katherine Rosenfeld | Template design by <a href="http://andreasviklund.com/">Andreas Viklund</a><br /></p>
+</div>
+<!-- / Footer block -->
+
+</div>
+<!-- / Layout setting -->
+</body>
+</html>
+
